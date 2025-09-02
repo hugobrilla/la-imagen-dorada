@@ -378,7 +378,7 @@
                     <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">¡Felicidades!</h2>
                     <p class="text-lg mb-4">Has completado tu viaje de 10 días con las imágenes doradas.</p>
                     <p class="mb-4">Ahora sabes cómo transformar, dirigir y empoderar tu mundo interno. El oro ya está en ti. Camina con esa luz.</p>
-                    <button onclick="viewJournal()" class="btn-save mt-4">Ver mi Diario</button>
+                    <button onclick="changePage('journal')" class="btn-save mt-4">Ver mi Diario</button>
                     <button onclick="changePage('intro')" class="btn-nav mt-4 ml-2">Volver a empezar</button>
                 </div>
             `,
@@ -403,6 +403,8 @@
                     document.getElementById('start-btn-blog').addEventListener('click', () => {
                         changePage('day1');
                     });
+                } else if (pageName.startsWith('day')) {
+                    addJournalSection(pageName);
                 }
             }
         };
@@ -414,9 +416,26 @@
 
         window.changePage = changePage;
 
+        const addJournalSection = (day) => {
+            const container = document.getElementById('app-blog').querySelector('.card-blog');
+            if (!container) return;
+
+            const journalSection = document.createElement('div');
+            journalSection.innerHTML = `
+                <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Escribe en tu Diario</h3>
+                <textarea id="journal-${day}" class="textarea-journal" placeholder="Escribe tus reflexiones, ideas y experiencias de hoy..."></textarea>
+                <div class="flex justify-end mt-4">
+                    <button onclick="saveJournal('${day}')" class="btn-save">Guardar Diario</button>
+                </div>
+            `;
+            container.appendChild(journalSection);
+
+            // Cargar contenido si existe
+            loadJournalEntry(day);
+        };
+
         const saveJournal = async (day) => {
             if (!isAuthReady || !userId) {
-                // No usar alert(), usar un mensaje en la UI
                 const messageBox = document.createElement('div');
                 messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
                                        '<p>La funcionalidad de diario no está disponible. Debes configurar Firebase en el código para guardar.</p>' +
@@ -439,7 +458,6 @@
                     content: journalEntry,
                     timestamp: new Date()
                 });
-                // No usar alert(), usar un mensaje en la UI
                 const messageBox = document.createElement('div');
                 messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
                                        '<p>Diario guardado con éxito!</p>' +
@@ -448,7 +466,6 @@
                 document.body.appendChild(messageBox);
             } catch (e) {
                 console.error("Error al guardar el diario: ", e);
-                // No usar alert(), usar un mensaje en la UI
                 const messageBox = document.createElement('div');
                 messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
                                        '<p>Error al guardar el diario. Revisa la consola para más detalles.</p>' +
@@ -460,8 +477,23 @@
         window.saveJournal = saveJournal;
 
         const loadJournalEntry = async (day) => {
-            // Ya no es necesario cargar el texto de un día específico
+             if (!isAuthReady || !userId) {
+                console.warn("No se puede cargar el diario sin una conexión a Firebase.");
+                return;
+            }
+            try {
+                const journalCollectionPath = `artifacts/${appId}/users/${userId}/journal`;
+                const docRef = doc(db, journalCollectionPath, day);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById(`journal-${day}`).value = data.content;
+                }
+            } catch (e) {
+                console.error("Error al cargar la entrada del diario: ", e);
+            }
         };
+
 
         const loadJournal = async () => {
             const journalEntriesDiv = document.getElementById('journal-entries-blog');
@@ -486,16 +518,27 @@
 
                 journalEntriesDiv.innerHTML = ''; // Limpiar el mensaje de carga
 
+                const entries = [];
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     const day = doc.id;
                     const content = data.content;
                     const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString("es-ES") : "Fecha desconocida";
+                    entries.push({ day, content, date, timestamp: data.timestamp });
+                });
 
+                // Ordenar las entradas por día
+                entries.sort((a, b) => {
+                    const dayA = parseInt(a.day.replace('day', ''));
+                    const dayB = parseInt(b.day.replace('day', ''));
+                    return dayA - dayB;
+                });
+
+                entries.forEach(entry => {
                     const entryHtml = `
                         <div class="border border-[#d2c9b4] p-4 rounded-lg">
-                            <h4 class="font-semibold text-lg text-[#4b3e34]">Día ${day.replace('day', '')} - <span class="text-sm font-normal text-[#8a7a6c]">${date}</span></h4>
-                            <p class="mt-2 text-[#6f6050] whitespace-pre-wrap">${content}</p>
+                            <h4 class="font-semibold text-lg text-[#4b3e34]">Día ${entry.day.replace('day', '')} - <span class="text-sm font-normal text-[#8a7a6c]">${entry.date}</span></h4>
+                            <p class="mt-2 text-[#6f6050] whitespace-pre-wrap">${entry.content}</p>
                         </div>
                     `;
                     journalEntriesDiv.innerHTML += entryHtml;
@@ -506,14 +549,13 @@
             }
         };
 
-        window.viewJournal = loadJournal;
-        
+        window.changePage = changePage;
+        window.saveJournal = saveJournal;
+        window.viewJournal = () => changePage('journal'); // Cambiar el nombre a viewJournal para que sea más claro
+
         document.addEventListener('DOMContentLoaded', async () => {
-            renderPage('intro');
             await initFirebase();
-            document.getElementById('start-btn-blog').addEventListener('click', () => {
-                changePage('day1');
-            });
+            renderPage('intro');
         });
 
     </script>
