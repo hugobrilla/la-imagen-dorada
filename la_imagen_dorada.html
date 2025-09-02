@@ -1,0 +1,520 @@
+<div style="font-family: 'Inter', sans-serif; background-color: #f7f3e9; color: #4b3e34; padding: 2rem;">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        .container-blog { max-width: 900px; margin: auto; padding: 2rem; }
+        .card-blog { background-color: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem; }
+        .bg-gold-blog { background-color: #ffd700; }
+        .text-gold-blog { color: #ffd700; }
+        .text-blue-link-blog { color: #3b82f6; }
+        .text-story-link-blog { color: #e11d48; }
+        .border-gold-blog { border-color: #ffd700; }
+        .illustration-blog { font-size: 3rem; text-align: center; margin-bottom: 1rem; }
+        .btn-nav {
+            background-color: #4b3e34;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .btn-nav:hover {
+            transform: translateY(-2px);
+            background-color: #6f6050;
+        }
+        .btn-save {
+            background-color: #ffd700;
+            color: #4b3e34;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .btn-save:hover {
+            transform: translateY(-2px);
+            background-color: #ffc400;
+        }
+        .textarea-journal {
+            width: 100%;
+            height: 8rem;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            border: 1px solid #d2c9b4;
+            border-radius: 0.5rem;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .textarea-journal:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.5);
+        }
+    </style>
+    <div id="app-blog" class="container-blog">
+        <!-- Contenido dinámico -->
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+        // Establecer el nivel de registro para depuración
+        setLogLevel('debug');
+
+        // Variables globales proporcionadas por el entorno
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, auth, db, userId = null;
+        let isAuthReady = false;
+
+        const initFirebase = async () => {
+            if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('...')) {
+                console.warn("La configuración de Firebase no es válida o falta. La funcionalidad de diario no estará disponible.");
+                isAuthReady = false;
+                return;
+            }
+
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser.uid;
+                isAuthReady = true;
+                console.log("Usuario autenticado. ID:", userId);
+            } catch (error) {
+                console.error("Error de autenticación o inicialización de Firebase:", error);
+                isAuthReady = false;
+            }
+        };
+
+        const pages = {
+            intro: `
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold mb-2 text-[#4b3e34]">La Imagen Dorada</h1>
+                    <p class="text-lg text-[#6f6050] mb-2">10 días de entrenamiento para la visualización creativa</p>
+                    <p class="text-md text-[#8a7a6c] mb-6 font-semibold">Autor: Hugo Ernesto Martínez Granados</p>
+                    <div class="card-blog bg-white p-6 rounded-xl shadow-lg text-left">
+                        <h2 class="text-xl font-semibold mb-2 text-[#4b3e34]">¿Y si pudieras dirigir las imágenes en tu mente?</h2>
+                        <p class="mb-4 text-[#6f6050]">Tu mente es un proyector, y cada emoción, recuerdo y anhelo se construye a partir de imágenes internas, muchas veces de forma inconsciente. Esta guía de 10 días es una invitación a despertar el poder de tu imaginación consciente, transformando tu pasado, renovando tu presente y moldeando tu futuro.</p>
+                        <p class="mb-4 text-[#6f6050]">Aquí aprenderás que **visualizar no es solo imaginar, sino crear**. Cada imagen mental que formas con claridad y emoción se convierte en una señal que tu vida comienza a seguir. La clave no está en el esfuerzo, sino en el juego, permitiendo que tu creatividad fluya sin presión.</p>
+                        <p class="mb-4 text-[#6f6050]">Prepárate para usar tu mente como tu mayor aliada para sanar, avanzar y manifestar. ¡Comienza tu viaje dorado!</p>
+                    </div>
+                    <button id="start-btn-blog" class="btn-save mt-6">Comenzar</button>
+                </div>
+            `,
+            day1: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🎬</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 1: Tu Mente Como Pantalla de Cine</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/7LJiZAyrZj3YFOsJGDWTRm?si=7N5yVV5bTLyRjYdKhWLSWg" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/06c6ff453867" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Todo lo que imaginas con emoción, lo refuerzas en tu interior."</p>
+                    <p class="mb-4">Tu mente es como una pantalla de cine interna. En ella proyectas imágenes constantemente, muchas veces sin darte cuenta. Estas imágenes tienen poder, especialmente si están cargadas de emoción.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Busca un lugar tranquilo y siéntate cómodamente con los ojos cerrados.</li>
+                        <li>Visualiza algo neutro: una naranja. Nota su color, forma y textura. ¿Qué tan clara es la imagen?</li>
+                        <li>Visualiza algo que te desagrada. ¿Dónde aparece la imagen? ¿Cómo es su color y tamaño?</li>
+                        <li>Visualiza algo que amas profundamente. ¿Dónde se presenta esta imagen? ¿Cómo es su brillo y color? ¿Qué emociones te genera?</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Qué tan clara era la imagen de la naranja?</li>
+                        <li>¿Qué sensaciones o emociones te generó la imagen que amas?</li>
+                        <li>¿Qué notaste sobre el color, la luz y la posición de las imágenes en tu mente?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('intro')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day2')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day2: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🔄</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 2: El Hábito que Deseas Transformar</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/1WRnJVoRLXEdQ1WMegkPfD?si=ydZH0pAhSpiKKnzY2kpLWQ" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/80a58dc73588" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Un hábito es una imagen repetida."</p>
+                    <p class="mb-4">Todo hábito comienza con una imagen mental. Para transformar un hábito, primero debes observarlo con claridad y conciencia.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Identifica un hábito que quieres transformar. Puede ser físico o emocional.</li>
+                        <li>Cierra los ojos y observa la escena interna justo antes de caer en ese hábito. ¿Cómo es la imagen? ¿Qué emociones la acompañan?</li>
+                        <li>Hazla más vívida a propósito. Agranda la imagen, dale más color, luz y sonido.</li>
+                        <li>Repite internamente: "Hoy observo esta imagen con compasión. La veo para transformarla."</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Pudiste observar la imagen que precede a tu hábito?</li>
+                        <li>¿Qué emociones acompañaban esa imagen?</li>
+                        <li>¿Cómo se sintió observar el hábito con compasión?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day1')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day3')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day3: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">✨</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 3: La Imagen que lo Reemplaza</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/35pPTjvVtIN6vlh2tfaYYH?si=jzHM-b0sSGqbcodLbXDZsg" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/40b29b60d762" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"No se trata solo de borrar, sino de elegir mejor."</p>
+                    <p class="mb-4">El verdadero cambio ocurre cuando tienes algo mejor con qué reemplazar lo que quieres dejar. La mente necesita imágenes fuertes y emocionales para alinearse con una nueva posibilidad.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Elige el hábito que quieres transformar.</li>
+                        <li>Pregúntate: ¿Cómo se vería mi nueva versión actuando de la manera que deseo?</li>
+                        <li>Visualiza esa nueva versión haciendo lo correcto. Haz la imagen pequeña, borrosa y lejana.</li>
+                        <li>Di "¡Uno, dos, tres, CAMBIO!" y hazla grande, dorada, brillante y vívida. Añade sonido y emoción.</li>
+                        <li>Repite este proceso 3-5 veces para reforzar la nueva respuesta.</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>Describe la imagen dorada que creaste para tu nueva versión.</li>
+                        <li>¿Pudiste sentir la nueva emoción al visualizar esa imagen?</li>
+                        <li>¿Qué sentiste al hacer la imagen grande, brillante y vívida?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day2')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day4')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day4: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">❤️‍🩹</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 4: Reprograma una Emoción</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/3zeo6Y8hrtUOxbhUS5STxQ?si=V-OM1HZCRUSC3taJlqA3Qg" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/2300505c2b43" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Cada emoción nace de una imagen interna."</p>
+                    <p class="mb-4">Las emociones no aparecen de la nada; siempre están acompañadas por una imagen mental. Al cambiar la imagen, puedes transformar tu respuesta emocional.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Elige una emoción que te limite (ej. miedo, rabia).</li>
+                        <li>Cierra los ojos y observa la imagen mental que la acompaña. Nota su forma, color y tamaño.</li>
+                        <li>Imagina una nueva imagen que represente paz, libertad o alivio.</li>
+                        <li>Visualízala pequeña y distante, luego di "¡Uno, dos, tres, CAMBIO!" y hazla grande, dorada y vibrante.</li>
+                        <li>Deja que ocupe el lugar de la vieja imagen y siente la nueva emoción expandirse.</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Cuál era la imagen mental de la emoción que te limitaba?</li>
+                        <li>Describe la nueva imagen que usaste para reemplazarla.</li>
+                        <li>¿Pudiste sentir la nueva emoción expandirse en tu cuerpo?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day3')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day5')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day5: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🗺️</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 5: Explora tu Mapa Interior</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/42yzoc45Lss4FCBlFPw33d?si=Mg3vhlUCR2Gu5pfpM70MvA" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/48186c9562e5" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"La mente organiza emociones en el espacio."</p>
+                    <p class="mb-4">Tu mente organiza imágenes emocionales en un mapa interno tridimensional. Aprender a reubicarlas conscientemente puede cambiar tus emociones.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Cierra los ojos y visualiza algo que te encante. Nota su posición, tamaño y luz.</li>
+                        <li>Visualiza algo que te disgusta. ¿Dónde aparece? ¿Cómo es su textura y color?</li>
+                        <li>Ahora, mueve conscientemente la imagen negativa. Hazla más pequeña, opaca y alejada.</li>
+                        <li>Mueve la imagen positiva hacia un lugar más prominente, haciéndola más grande y brillante.</li>
+                        <li>Repite el movimiento varias veces, sintiendo el cambio en tu emoción.</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Dónde se ubicaban la imagen que te encantaba y la que te disgustaba?</li>
+                        <li>¿Qué pasó con tus emociones al mover las imágenes de lugar?</li>
+                        <li>¿Dónde quieres ubicar las imágenes que te empoderan de ahora en adelante?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day4')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day6')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day6: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">⏸️</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 6: Procrastina con Intención</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/7i371bTdnlJ0eW6LtNyVEL?si=QKO1V4MbS8yVvwWemfEJpA" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/a74f9afeb579" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Si eres bueno para procrastinar, pospón lo que te daña."</p>
+                    <p class="mb-4">Puedes usar la habilidad de posponer para tu beneficio, aplazando pensamientos negativos o emociones densas en lugar de ignorarlas.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Elige un pensamiento o emoción que te sabotee con frecuencia.</li>
+                        <li>Cierra los ojos y observa la imagen asociada. Nota su forma, color e intensidad.</li>
+                        <li>Di en voz suave: "Esto lo dejo para después." Y visualiza cómo la imagen se aleja o se disuelve.</li>
+                        <li>Trae a tu pantalla interna una imagen dorada que represente bienestar. Hazla vibrante y emocional.</li>
+                        <li>Repite el proceso cada vez que el pensamiento negativo intente regresar.</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Qué pensamiento o emoción decidiste posponer?</li>
+                        <li>¿Cómo visualizaste el acto de "dejarlo para después"?</li>
+                        <li>¿Qué imagen dorada usaste para llenar ese espacio?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day5')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day7')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day7: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">⚡</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 7: Activa tu Vitalidad</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/4QH4Bve6GZBUVUkZGhWXm5?si=LmAJa8RZRWWtKu48OVJrTA" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/0573835b154e" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Donde va la imagen, va la energía."</p>
+                    <p class="mb-4">El cuerpo sigue a la mente. Visualizarte con vitalidad no es solo motivación, es programación energética que afecta tu sistema nervioso, hormonas y estado de ánimo.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Cierra los ojos y visualízate con energía plena: caminando ágil, con una sonrisa, espalda erguida, ojos brillantes.</li>
+                        <li>Nota dónde aparece la imagen en tu campo visual interior. Hazla más intensa, dorada y tridimensional.</li>
+                        <li>Inyecta emoción, sintiendo la alegría de estar sano y vital.</li>
+                        <li>Guarda esta imagen como un "botón de acceso rápido" y actívala cada vez que necesites un impulso.</li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>Describe tu imagen de "vitalidad plena".</li>
+                        <li>¿Qué sentiste en tu cuerpo al activar esta imagen?</li>
+                        <li>¿Dónde guardarás este "botón de acceso rápido" para usarlo cuando lo necesites?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day6')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day8')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day8: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🌅</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 8: Transforma el Recuerdo</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/3vPjGPgFftVaKjbEV0rcTJ?si=H2C2uE_JTaCIJqoJrC4j2w" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/fc67521f3d08" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Lo que duele es la imagen que conservas, no el hecho en sí."</p>
+                    <p class="mb-4">El dolor de un recuerdo no está en el pasado, sino en la forma en que lo sostienes en tu mente. Puedes transformar la forma en que llevas contigo los eventos dolorosos.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Ejercicio</h3>
+                    <ol class="list-decimal list-inside space-y-2 mb-4">
+                        <li>Piensa en un evento del pasado que te cause malestar.</li>
+                        <li>Observa la imagen mental de ese recuerdo. Nota si es grande, cercana o a color.</li>
+                        <li>Modifica la imagen: hazla más pequeña, quítale el color, aleja el sonido, hazla opaca y plana.</li>
+                        <li>Ahora, imagina una nueva imagen sanadora o una interpretación dorada del evento. Visualízate más fuerte y sabio después de la experiencia.</li>
+                        </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Cómo se sentía el recuerdo antes de transformarlo?</li>
+                        <li>Describe la imagen modificada: ¿la hiciste más pequeña, a blanco y negro?</li>
+                        <li>¿Qué nueva historia visual creaste a partir de ese recuerdo?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day7')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day9')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day9: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🚀</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 9: Tu Futuro en una Imagen</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/7xM9q5O32k0Hw018q7iXQp?si=Uv40XyW8T9e8d3hLpM3wA" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/ccca82ce97eb" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"La vida responde a las imágenes con las que la invitas."</p>
+                    <p class="mb-4">Tu mente no distingue entre lo que imaginas vívidamente y lo que vives. La visualización es una de las herramientas más poderosas para transformar tu destino.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Cuál es la imagen que visualizas para tu futuro?</li>
+                        <li>¿Qué emociones te genera esta visión?</li>
+                        <li>¿Qué pasos pequeños puedes dar hoy para acercarte a esa imagen?</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day8')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('day10')" class="btn-nav">Siguiente Día</button>
+                    </div>
+                </div>
+            `,
+            day10: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <div class="illustration-blog">🏆</div>
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Día 10: La Escena Maestra</h2>
+                    <p class="mb-4 text-blue-link-blog"><a href="https://open.spotify.com/episode/46uD1oT1F51xX3h4r2x9lU?si=t5o_u_x_SEi98t8y_q8lT8Lw" target="_blank">Escucha el podcast de este Día</a></p>
+                    <p class="mb-4 text-story-link-blog"><a href="https://g.co/gemini/share/b38af08324ae" target="_blank">Lee el cuento de hoy</a></p>
+                    <p class="mb-4 text-[#6f6050]">"Dominar tus imágenes mentales es dominar tu destino."</p>
+                    <p class="mb-4">Hoy es el día de integrar y celebrar tu transformación. Tu mente se ha convertido en tu mayor aliada. Este poder vive en ti y se activa cada vez que decides imaginar con conciencia.</p>
+                    <h3 class="text-xl font-semibold mt-6 mb-2 text-gold-blog">Preguntas para Reflexionar</h3>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li>¿Qué ha sido lo más importante que aprendiste en estos 10 días?</li>
+                        <li>¿Qué poder sientes que tienes ahora que antes no reconocías?</li>
+                        <li>Escribe una frase o una imagen que resuma tu viaje.</li>
+                    </ul>
+                    <div class="flex justify-between mt-4">
+                        <button onclick="changePage('day9')" class="btn-nav">Día Anterior</button>
+                        <button onclick="changePage('final')" class="btn-nav">Finalizar</button>
+                    </div>
+                </div>
+            `,
+            final: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg text-center">
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">¡Felicidades!</h2>
+                    <p class="text-lg mb-4">Has completado tu viaje de 10 días con las imágenes doradas.</p>
+                    <p class="mb-4">Ahora sabes cómo transformar, dirigir y empoderar tu mundo interno. El oro ya está en ti. Camina con esa luz.</p>
+                    <button onclick="viewJournal()" class="btn-save mt-4">Ver mi Diario</button>
+                    <button onclick="changePage('intro')" class="btn-nav mt-4 ml-2">Volver a empezar</button>
+                </div>
+            `,
+            journal: `
+                <div class="card-blog bg-white p-6 rounded-xl shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-4 text-[#4b3e34]">Mi Diario de Visualización</h2>
+                    <div id="journal-entries-blog" class="space-y-4"></div>
+                    <button onclick="changePage('final')" class="btn-nav mt-4">Volver</button>
+                </div>
+            `
+        };
+
+        let currentPage = 'intro';
+
+        const renderPage = (pageName) => {
+            const appDiv = document.getElementById('app-blog');
+            if (appDiv) {
+                appDiv.innerHTML = pages[pageName];
+                if (pageName === 'journal') {
+                    loadJournal();
+                } else if (pageName === 'intro') {
+                    document.getElementById('start-btn-blog').addEventListener('click', () => {
+                        changePage('day1');
+                    });
+                }
+            }
+        };
+
+        const changePage = (pageName) => {
+            currentPage = pageName;
+            renderPage(pageName);
+        };
+
+        window.changePage = changePage;
+
+        const saveJournal = async (day) => {
+            if (!isAuthReady || !userId) {
+                // No usar alert(), usar un mensaje en la UI
+                const messageBox = document.createElement('div');
+                messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
+                                       '<p>La funcionalidad de diario no está disponible. Debes configurar Firebase en el código para guardar.</p>' +
+                                       '<button onclick="this.parentElement.remove()" style="margin-top:1rem;padding:0.5rem 1rem;background-color:#ffd700;border:none;border-radius:9999px;font-weight:bold;">Aceptar</button>' +
+                                       '</div>';
+                document.body.appendChild(messageBox);
+                console.warn("La funcionalidad de guardar el diario no está disponible sin una configuración de Firebase.");
+                return;
+            }
+            const journalEntry = document.getElementById(`journal-${day}`).value;
+            if (!journalEntry) {
+                console.error("No hay nada que guardar.");
+                return;
+            }
+
+            try {
+                const journalCollectionPath = `artifacts/${appId}/users/${userId}/journal`;
+                const docRef = doc(db, journalCollectionPath, day);
+                await setDoc(docRef, {
+                    content: journalEntry,
+                    timestamp: new Date()
+                });
+                // No usar alert(), usar un mensaje en la UI
+                const messageBox = document.createElement('div');
+                messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
+                                       '<p>Diario guardado con éxito!</p>' +
+                                       '<button onclick="this.parentElement.remove()" style="margin-top:1rem;padding:0.5rem 1rem;background-color:#ffd700;border:none;border-radius:9999px;font-weight:bold;">Aceptar</button>' +
+                                       '</div>';
+                document.body.appendChild(messageBox);
+            } catch (e) {
+                console.error("Error al guardar el diario: ", e);
+                // No usar alert(), usar un mensaje en la UI
+                const messageBox = document.createElement('div');
+                messageBox.innerHTML = '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:#fff;padding:2rem;border-radius:1rem;box-shadow:0 10px 20px rgba(0,0,0,0.2);text-align:center;">' +
+                                       '<p>Error al guardar el diario. Revisa la consola para más detalles.</p>' +
+                                       '<button onclick="this.parentElement.remove()" style="margin-top:1rem;padding:0.5rem 1rem;background-color:#ffd700;border:none;border-radius:9999px;font-weight:bold;">Aceptar</button>' +
+                                       '</div>';
+                document.body.appendChild(messageBox);
+            }
+        };
+        window.saveJournal = saveJournal;
+
+        const loadJournalEntry = async (day) => {
+            // Ya no es necesario cargar el texto de un día específico
+        };
+
+        const loadJournal = async () => {
+            const journalEntriesDiv = document.getElementById('journal-entries-blog');
+            if (!journalEntriesDiv) return;
+
+            if (!isAuthReady || !userId) {
+                journalEntriesDiv.innerHTML = '<p style="text-align: center; color: #d9534f;">La funcionalidad de diario no está activa. Para usarla, debes configurar Firebase en el código.</p>';
+                return;
+            }
+            
+            journalEntriesDiv.innerHTML = '<p style="text-align: center; color: #8a7a6c;">Cargando...</p>';
+
+            try {
+                const journalCollectionPath = `artifacts/${appId}/users/${userId}/journal`;
+                const q = query(collection(db, journalCollectionPath));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    journalEntriesDiv.innerHTML = '<p style="text-align: center; color: #8a7a6c;">Aún no has escrito nada en tu diario.</p>';
+                    return;
+                }
+
+                journalEntriesDiv.innerHTML = ''; // Limpiar el mensaje de carga
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const day = doc.id;
+                    const content = data.content;
+                    const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString("es-ES") : "Fecha desconocida";
+
+                    const entryHtml = `
+                        <div class="border border-[#d2c9b4] p-4 rounded-lg">
+                            <h4 class="font-semibold text-lg text-[#4b3e34]">Día ${day.replace('day', '')} - <span class="text-sm font-normal text-[#8a7a6c]">${date}</span></h4>
+                            <p class="mt-2 text-[#6f6050] whitespace-pre-wrap">${content}</p>
+                        </div>
+                    `;
+                    journalEntriesDiv.innerHTML += entryHtml;
+                });
+            } catch (e) {
+                journalEntriesDiv.innerHTML = '<p style="text-align: center; color: #d9534f;">Error al cargar el diario. Por favor, inténtalo de nuevo.</p>';
+                console.error("Error al cargar el diario: ", e);
+            }
+        };
+
+        window.viewJournal = loadJournal;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            renderPage('intro');
+            await initFirebase();
+            document.getElementById('start-btn-blog').addEventListener('click', () => {
+                changePage('day1');
+            });
+        });
+
+    </script>
+</div>
